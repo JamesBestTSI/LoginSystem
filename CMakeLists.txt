@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add the executable
-add_executable(LoginSystem src/main.cpp src/System/CoreFunctions.cpp)
+add_executable(LoginSystem src/main.cpp src/AccountSystem.cpp src/System/CoreFunctions.cpp)
 
 # Add the targeted cpp features
 target_compile_features(LoginSystem PUBLIC cxx_std_20)
