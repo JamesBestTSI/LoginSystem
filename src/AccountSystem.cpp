@@ -57,11 +57,14 @@ std::string AccountSystem::GetUserString(const std::string &preInputMessage){
  */
 bool AccountSystem::Login(){
     system("cls");
+    LoggedInUser = "";
     std::string LoginUsername = GetUserString("Please Enter A Username: ");
     std::string LoginPassword = GetUserString("Please Enter A Password: ");
 
+    // Check if Admin Account Entered
     UserIsAdmin(LoginUsername, LoginPassword) ? LoggedInUser = AdminAccountInfo.first : LoggedInUser = "";
 
+    // If not admin, check if user exists
     if (LoggedInUser == "")    {
         for (const auto &[UserDetails, Message] : UsersData)        {
             if (LoginUsername == UserDetails.first && LoginPassword == UserDetails.second)
@@ -69,8 +72,15 @@ bool AccountSystem::Login(){
         }
     }
 
-    if (LoggedInUser == "")
-    {std::cout << "Username and Password does not match a previously entered Username and Password\n\n";}
+    // If details entered failed
+    if (LoggedInUser == ""){
+        std::cout << "Username and Password does not match a previously entered Username and Password\n\n";
+        LockAccount(LoginUsername);
+    }
+    // Finally check that the account is not locked out
+    else if(IsAccountLocked(LoginUsername)){
+        LoggedInUser = "";
+    }    
     return (LoggedInUser != "");
 }
 
@@ -166,12 +176,85 @@ void AccountSystem::DisplayAdminOptions(){
     system("cls");
     std::cout << "Welcome " << LoggedInUser << "\n";
     while (true){
-        std::cout << "Options:\n1. List Users\n2. Remove User\n";
+        std::cout << "Options:\n1. List Users\n2. Remove User\n3. Unlock Account\n";
         int Option = core.GetInt();
         switch (Option){
             case 1:{ListUsers();break;}
             case 2:{RemoveUser();break;}
+            case 3:{UnlockAccount();break;}
             default:{break;}
         }
     }
+}
+
+/**
+ * @brief Locks an account name for 1 minute
+ * 
+ * @param Username The account name to lock
+ */
+void AccountSystem::LockAccount(std::string Username){
+    bool AccountAlreadyLocked = false;
+    for (const auto &[LockedUsername, LockedStartTime] : LockedAccounts){
+        if(Username == LockedUsername){
+            long long secondsPassed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - LockedStartTime).count();
+            if (secondsPassed < 60){
+                AccountAlreadyLocked = true;
+                std::cout << "Account is currently locked for " << 60 - secondsPassed << " seconds!";
+            }
+            else
+            {LockedAccounts.erase(Username);}
+        }
+    }
+    if(!AccountAlreadyLocked){
+        LockedAccounts.insert({Username, std::chrono::steady_clock::now()});
+        std::cout << "Account has been locked for 1 minute!\n";
+    }
+}
+
+/**
+ * @brief Used to unlock an account.
+ */
+void AccountSystem::UnlockAccount(){
+    if (LockedAccounts.size() == 0)
+    {std::cout << "There are no locked accounts available!\n";}
+    else
+    {
+        std::cout << "To Unlock An Account, ";
+        std::string UserToUnlock = GetUserString("Please Enter A Username: ");
+        bool unlocked = false;
+        for (const auto &[LockedUsername, LockedStartTime] : LockedAccounts){
+            if (LockedUsername == UserToUnlock){
+                LockedAccounts.erase(LockedUsername);
+                std::cout << "Account Unlocked!\n";
+                unlocked = true;
+            }
+        }
+        if (!unlocked)
+        {std::cout << "Account was not locked!\n";}
+    }
+    core.WaitForKeyPress();
+    system("cls");
+}
+
+/**
+ * @brief Checks to see if the account is locked out, 
+ * while looping through locked accounts, also clears accounts that have passed the 1 minute timer
+ * 
+ * @param Username Account name we want to check if its locked
+ * @return true if locked out
+ * @return false if not locked out
+ */
+bool AccountSystem::IsAccountLocked(const std::string& Username){
+    for (const auto &[LockedUsername, LockedStartTime] : LockedAccounts){
+        long long secondsPassed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - LockedStartTime).count();
+
+        if (secondsPassed > 60)
+        {LockedAccounts.erase(LockedUsername);}
+
+        else if (Username == LockedUsername){
+            std::cout << "Account is currently locked for " << 60 - secondsPassed << " seconds!";
+            return true;
+        }
+    }
+    return false;
 }
